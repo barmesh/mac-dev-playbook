@@ -28,7 +28,7 @@
       when: item.installer_pkg is defined
       ansible.builtin.command: >-
         installer -pkg "{{ tmp_dir.path }}/{{ item.installer_pkg }}" -target /
-      become: yes
+      become: true
       changed_when: true
 
 # Block for discovering the installer automatically
@@ -83,7 +83,7 @@
       when: discovered_installer_type == 'pkg'
       ansible.builtin.command: >-
         installer -pkg "{{ discovered_installer_path }}" -target /
-      become: yes
+      become: true
       changed_when: true
 
 - name: "Remove temporary directory"
