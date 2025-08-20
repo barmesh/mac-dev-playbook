@@ -1,0 +1,94 @@
+---
+- name: "Create temporary directory for install"
+  ansible.builtin.tempfile:
+    state: directory
+    prefix: "ansible-zip-installer-"
+  register: tmp_dir
+
+- name: "Unarchive the installer from URL"
+  ansible.builtin.unarchive:
+    src: "{{ item.url }}"
+    dest: "{{ tmp_dir.path }}"
+    remote_src: yes
+
+# --- Begin Installer Logic ---
+
+# Block for when the installer is specified manually
+- name: "Run manually specified installer"
+  when: item.installer_app is defined or item.installer_pkg is defined
+  block:
+    - name: "Run the specified .app installer"
+      when: item.installer_app is defined
+      ansible.builtin.command: >-
+        "{{ tmp_dir.path }}/{{ item.installer_app }}/Contents/MacOS/{{
+        item.executable_name | default(item.installer_app | regex_replace('\\.app$', '')) }}"
+      changed_when: true
+
+    - name: "Run the specified .pkg installer"
+      when: item.installer_pkg is defined
+      ansible.builtin.command: >-
+        installer -pkg "{{ tmp_dir.path }}/{{ item.installer_pkg }}" -target /
+      become: yes
+      changed_when: true
+
+# Block for discovering the installer automatically
+- name: "Discover and run installer automatically"
+  when: item.installer_app is not defined and item.installer_pkg is not defined
+  block:
+    - name: "Find .app installers in the archive"
+      ansible.builtin.find:
+        paths: "{{ tmp_dir.path }}"
+        patterns: "*.app"
+        file_type: directory
+        recurse: yes
+      register: found_apps
+
+    - name: "Find .pkg installers in the archive"
+      ansible.builtin.find:
+        paths: "{{ tmp_dir.path }}"
+        patterns: "*.pkg"
+        file_type: file
+        recurse: yes
+      register: found_pkgs
+
+    - name: "Combine and validate installer findings"
+      ansible.builtin.set_fact:
+        all_installers: "{{ found_apps.files + found_pkgs.files }}"
+
+    - name: "Fail if no installer was found"
+      ansible.builtin.fail:
+        msg: "Could not find any .app or .pkg installer in the archive for {{ item.name }}."
+      when: all_installers | length == 0
+
+    - name: "Fail if multiple installers were found"
+      ansible.builtin.fail:
+        msg: "Found multiple installers for {{ item.name }}: {{ all_installers | map(attribute='path') | list }}. Please specify which one to use with 'installer_app' or 'installer_pkg'."
+      when: all_installers | length > 1
+
+    - name: "Set installer path and type from discovery"
+      ansible.builtin.set_fact:
+        discovered_installer_path: "{{ all_installers[0].path }}"
+        discovered_installer_type: "{{ 'pkg' if all_installers[0].path.endswith('.pkg') else 'app' }}"
+
+    - name: "Run the discovered .app installer"
+      when: discovered_installer_type == 'app'
+      vars:
+        app_path: "{{ discovered_installer_path }}"
+        executable_name: "{{ discovered_installer_path | basename | regex_replace('\\.app$', '') }}"
+      # ADD quotes around the command string itself
+      ansible.builtin.shell: '"{{ app_path }}/Contents/MacOS/{{ executable_name }}"'
+      changed_when: true
+
+    - name: "Run the discovered .pkg installer"
+      when: discovered_installer_type == 'pkg'
+      ansible.builtin.command: >-
+        installer -pkg "{{ discovered_installer_path }}" -target /
+      become: yes
+      changed_when: true
+
+- name: "Remove temporary directory"
+  ansible.builtin.file:
+    path: "{{ tmp_dir.path }}"
+    state: absent
+  when: tmp_dir.path is defined
+  ignore_errors: true

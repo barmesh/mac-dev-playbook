@@ -22,15 +22,14 @@
     - role: geerlingguy.mac.mas
       when: mas_installed_apps or mas_installed_app_ids
       tags: ['mas']
+    - role: macos-packaged-apps-installer
+      when: packaged_apps
+      tags: ['packages']
     - role: geerlingguy.mac.dock
       when: configure_dock
       tags: ['dock']
 
   tasks:
-    - import_tasks: tasks/dmg.yml
-      when: dmg_installed_apps
-      tags: ['dmg']
-      
     - import_tasks: tasks/sudoers.yml
       when: configure_sudoers
       tags: ['sudoers']

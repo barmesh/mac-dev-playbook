@@ -1,0 +1,17 @@
+---
+- name: "Process packaged app for {{ item.name }}"
+  block:
+    - name: "Check if {{ item.name }} is already installed"
+      ansible.builtin.stat:
+        path: "/Applications/{{ item.app_name | default(item.name + '.app') }}"
+      register: app
+
+    - when: not app.stat.exists
+      block:
+        - name: "Handle DMG installation"
+          include_tasks: install_dmg.yml
+          when: item.url.endswith('.dmg')
+
+        - name: "Handle ZIP installation"
+          include_tasks: install_zip.yml
+          when: item.url.endswith('.zip')
