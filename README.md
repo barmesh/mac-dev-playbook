@@ -42,7 +42,7 @@ If you need to supply an SSH password (if you don't use SSH keys), make sure to 
 
 ### Running a specific set of tagged tasks
 
-You can filter which part of the provisioning process to run by specifying a set of tags using `ansible-playbook`'s `--tags` flag. The tags available are `dotfiles`, `homebrew`, `mas`, `extra-packages` and `osx`.
+You can filter which part of the provisioning process to run by specifying a set of tags using `ansible-playbook`'s `--tags` flag. The tags available are `dotfiles`, `homebrew`, `mas`, `app-packages`, `extra-packages` and `osx`.
 
     ansible-playbook main.yml -K --tags "dotfiles,homebrew"
 
@@ -78,6 +78,12 @@ npm_packages:
 pip_packages:
   - name: mkdocs
 
+packaged_apps:
+  - name: iTerm
+    url: https://iterm2.com/downloads/stable/iTerm2-3_5_2.dmg
+  - name: "1Password"
+    url: "https://c.1password.com/dist/1P/mac8/1Password-8.10.34.zip"
+
 configure_dock: true
 dockitems_remove:
   - Launchpad
@@ -89,6 +95,28 @@ dockitems_persist:
 ```
 
 Any variable can be overridden in `config.yml`; see the supporting roles' documentation for a complete list of available variables.
+
+### Installing Apps from DMG or ZIP packages
+
+The playbook can automatically install applications from DMG or ZIP packages using the `packaged_apps` configuration. This feature automatically detects the package type based on the URL extension and handles the installation appropriately:
+
+- **DMG files**: Downloads, mounts the DMG, and copies the .app to /Applications
+- **ZIP files**: Downloads, extracts, and runs installers (.app or .pkg) or copies .app files to /Applications
+
+Example configuration:
+
+```yaml
+packaged_apps:
+  - name: iTerm
+    url: https://iterm2.com/downloads/stable/iTerm2-3_5_2.dmg
+  - name: "1Password"
+    url: "https://c.1password.com/dist/1P/mac8/1Password-8.10.34.zip"
+    installer_app: "1Password Installer.app"  # Optional, specify when multiple installers exist
+```
+
+You can run only the packaged apps installation with:
+
+    ansible-playbook main.yml -K --tags "app-packages"
 
 ## Included Applications / Configuration (Default)
 

@@ -1,0 +1,6 @@
+---
+- name: "Include packaged app installation task for each package"
+  include_tasks: install.yml
+  loop: "{{ packaged_apps }}"
+  loop_control:
+    label: "{{ item.name }}"
