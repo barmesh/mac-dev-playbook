@@ -2,6 +2,6 @@
 .DS_Store
 .ansible
 *.retry
-roles/*
-!roles/macos-packaged-apps-installer/
+roles/elliotweiser.osx-command-line-tools
+roles/geerlingguy.dotfiles
 config.yml
